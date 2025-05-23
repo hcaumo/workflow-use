@@ -20,6 +20,7 @@ from workflow_use.recorder.service import RecordingService  # Added import
 from workflow_use.workflow.service import Workflow
 from workflow_use.llm.llm_provider import get_llm_model
 from workflow_use.llm.config import model_names
+from workflow_use.browser_config import get_chrome_browser  # Import Chrome browser config
 
 # Placeholder for recorder functionality
 # from src.recorder.service import RecorderService
@@ -344,7 +345,7 @@ def run_workflow_command(
 	try:
 		# Instantiate Browser and WorkflowController for the Workflow instance
 		# Pass llm_instance for potential agent fallbacks or agentic steps
-		browser_instance = Browser()  # Add any necessary config if required
+		browser_instance = get_chrome_browser()  # Use Chrome instead of Chromium
 		controller_instance = WorkflowController()  # Add any necessary config if required
 		workflow_obj = Workflow.load_from_file(
 			str(workflow_path), llm=llm_instance, browser=browser_instance, controller=controller_instance

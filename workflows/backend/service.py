@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 
 from workflow_use.controller.service import WorkflowController
 from workflow_use.workflow.service import Workflow
+from workflow_use.browser_config import get_chrome_browser  # Import Chrome browser config
 
 
 class WorkflowService:
@@ -28,7 +29,7 @@ class WorkflowService:
 			print(f'Error initializing LLM: {exc}. Ensure OPENAI_API_KEY is set.')
 			self.llm_instance = None
 
-		self.browser_instance = Browser()
+		self.browser_instance = get_chrome_browser()  # Use Chrome instead of Chromium
 		self.controller_instance = WorkflowController()
 
 		# In‑memory task tracking

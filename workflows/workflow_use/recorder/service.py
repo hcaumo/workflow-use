@@ -1,6 +1,7 @@
 import asyncio
 import json
 import pathlib
+import platform
 from typing import Optional
 
 import uvicorn
@@ -124,26 +125,80 @@ class RecordingService:
             self.recording_complete_event.set()  # Signal failure
             return
 
-        # delete the user data dir
-        USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
-        print(f"[Service] Using Playwright user data directory: {USER_DATA_DIR}")
+        # Get Chrome executable path and user data directory based on operating system
+        chrome_paths = {
+            "Darwin": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",  # macOS
+            "Windows": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",  # Windows
+            "Linux": "/usr/bin/google-chrome"  # Linux
+        }
+        
+        # Chrome user data directories (existing profiles)
+        chrome_user_data_dirs = {
+            "Darwin": pathlib.Path.home() / "Library/Application Support/Google/Chrome",  # macOS
+            "Windows": pathlib.Path.home() / "AppData/Local/Google/Chrome/User Data",  # Windows
+            "Linux": pathlib.Path.home() / ".config/google-chrome"  # Linux
+        }
+        
+        system = platform.system()
+        chrome_path = chrome_paths.get(system)
+        chrome_user_data_dir = chrome_user_data_dirs.get(system)
+        
+        if not chrome_path:
+            print(f"[Service] WARNING: Unsupported operating system: {system}. Falling back to Chromium.")
+            chrome_path = None
+            chrome_user_data_dir = None
+
+        # Use existing Chrome profile if available, otherwise create a clean session
+        if chrome_user_data_dir and chrome_user_data_dir.exists():
+            user_data_path = str(chrome_user_data_dir.resolve())
+            print(f"[Service] Using existing Chrome profile: {user_data_path}")
+        else:
+            # Fallback to clean session if user profile not found
+            USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+            user_data_path = str(USER_DATA_DIR.resolve())
+            print(f"[Service] Chrome profile not found, using clean session: {user_data_path}")
 
         async with async_playwright() as p:
             try:
-                self.playwright_context = await p.chromium.launch_persistent_context(
-                    str(USER_DATA_DIR.resolve()),
-                    headless=False,
-                    no_viewport=True,
-                    args=[
-                        f"--disable-extensions-except={str(EXT_DIR.resolve())}",
-                        f"--load-extension={str(EXT_DIR.resolve())}",
-                    ],
-                )
+                launch_args = [
+                    f"--disable-extensions-except={str(EXT_DIR.resolve())}",
+                    f"--load-extension={str(EXT_DIR.resolve())}",
+                    "--disable-infobars",  # Remove info bars including automation message
+                    "--disable-dev-shm-usage",  # Improve stability
+                    "--disable-web-security",  # Allow extension to work with existing profile
+                    "--disable-features=VizDisplayCompositor",  # Improve compatibility
+                    "--no-first-run",  # Skip first run experience
+                    "--no-default-browser-check",  # Skip default browser check
+                    "--disable-default-apps",  # Disable default apps
+                    "--disable-popup-blocking",  # Allow popups for workflow recording
+                ]
+                
+                if chrome_path:
+                    print(f"[Service] Launching Chrome from: {chrome_path}")
+                    self.playwright_context = await p.chromium.launch_persistent_context(
+                        user_data_path,
+                        headless=False,
+                        no_viewport=True,
+                        executable_path=chrome_path,  # Use Chrome instead of Chromium
+                        args=launch_args,
+                        ignore_default_args=["--enable-automation", "--no-sandbox"],  # Remove automation flag and sandbox warning
+                        user_agent=None,  # Use default user agent (not automation user agent)
+                        extra_http_headers=None,  # Use normal headers
+                    )
+                else:
+                    print("[Service] Launching Chromium (fallback)")
+                    self.playwright_context = await p.chromium.launch_persistent_context(
+                        user_data_path,
+                        headless=False,
+                        no_viewport=True,
+                        args=launch_args,
+                    )
+                
                 print(
-                    "[Service] Playwright browser launched. Waiting for close or recording stop..."
+                    "[Service] Browser launched successfully. Waiting for close or recording stop..."
                 )
                 await self.playwright_context.wait_for_event("close", timeout=0)
-                print("[Service] Playwright context 'close' event detected.")
+                print("[Service] Browser context 'close' event detected.")
             except asyncio.CancelledError:
                 print("[Service] Playwright task cancelled.")
                 if self.playwright_context:

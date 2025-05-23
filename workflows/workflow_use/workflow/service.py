@@ -33,6 +33,7 @@ from workflow_use.schema.views import (
 )
 from workflow_use.workflow.prompts import WORKFLOW_FALLBACK_PROMPT_TEMPLATE
 from workflow_use.controller.utils import get_best_element_handle
+from workflow_use.browser_config import get_chrome_browser  # Import Chrome browser config
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class Workflow:
 		self.steps = self.schema.steps
 
 		self.controller = controller or WorkflowController()
-		self.browser = browser or Browser()
+		self.browser = browser or get_chrome_browser()  # Use Chrome by default
 		self.llm = llm
 		self.fallback_to_agent = fallback_to_agent
 
