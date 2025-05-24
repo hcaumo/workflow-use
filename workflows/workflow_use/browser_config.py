@@ -27,6 +27,7 @@ def get_chrome_browser(use_existing_profile: bool = False) -> Browser:
     
     # Configure extra arguments for Chrome
     extra_args = [
+        "--start-fullscreen",  # Start Chrome in full screen mode
         "--disable-infobars",  # Remove info bars including automation message
         "--disable-dev-shm-usage",  # Improve stability
         "--no-first-run",  # Skip first run experience

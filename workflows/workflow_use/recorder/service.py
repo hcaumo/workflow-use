@@ -161,6 +161,7 @@ class RecordingService:
         async with async_playwright() as p:
             try:
                 launch_args = [
+                    "--start-fullscreen",  # Start Chrome in full screen mode
                     f"--disable-extensions-except={str(EXT_DIR.resolve())}",
                     f"--load-extension={str(EXT_DIR.resolve())}",
                     "--disable-infobars",  # Remove info bars including automation message
